@@ -239,31 +239,27 @@ def add_underlying_display_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_underlying_plot_col(df: pd.DataFrame, selected_source: str) -> tuple[str | None, str]:
+def get_underlying_plot_col(df: pd.DataFrame, selected_source: str | None = None) -> tuple[str | None, str]:
+    """Return the single underlying series used by the final dashboard.
+
+    The final app uses quote midpoint as the BTC futures reference:
+        quote_mid = (best_bid + best_ask) / 2
+
+    The precomputed underlying_value column produced the same path in testing,
+    so the sidebar source dropdown was removed to avoid a redundant control.
+    underlying_value is kept only as a fallback if bid/ask columns are missing.
+    """
     if df.empty:
         return None, "No underlying data available"
 
-    if selected_source == "Futures trade price":
-        if "underlying_trade_price" in df.columns and df["underlying_trade_price"].notna().any():
-            return "underlying_trade_price", "Futures trade price"
-        if "underlying_quote_mid" in df.columns and df["underlying_quote_mid"].notna().any():
-            return "underlying_quote_mid", "Quote mid"
-        if "underlying_modeling" in df.columns and df["underlying_modeling"].notna().any():
-            return "underlying_modeling", "Modeling underlying"
-
-    if selected_source == "Quote mid from best_bid / best_ask":
-        if "underlying_quote_mid" in df.columns and df["underlying_quote_mid"].notna().any():
-            return "underlying_quote_mid", "Quote mid"
-        if "underlying_trade_price" in df.columns and df["underlying_trade_price"].notna().any():
-            return "underlying_trade_price", "Futures trade price"
-        if "underlying_modeling" in df.columns and df["underlying_modeling"].notna().any():
-            return "underlying_modeling", "Modeling underlying"
+    if "underlying_quote_mid" in df.columns and df["underlying_quote_mid"].notna().any():
+        return "underlying_quote_mid", "BTC futures quote mid"
 
     if "underlying_modeling" in df.columns and df["underlying_modeling"].notna().any():
-        return "underlying_modeling", "Modeling underlying"
+        return "underlying_modeling", "BTC futures reference value"
 
     if "underlying_value" in df.columns and df["underlying_value"].notna().any():
-        return "underlying_value", "Underlying value"
+        return "underlying_value", "BTC futures reference value"
 
     return None, "No underlying data available"
 
@@ -610,15 +606,11 @@ selected_source = st.sidebar.selectbox("Data source period", source_options)
 
 st.sidebar.subheader("Chart options")
 
-underlying_source_choice = st.sidebar.selectbox(
-    "Underlying source for evolution charts",
-    options=[
-        "Futures trade price",
-        "Quote mid from best_bid / best_ask",
-        "Modeling underlying_value",
-    ],
-    index=0,
-)
+# The final dashboard uses a single futures-side reference: quote midpoint.
+# A previous dropdown compared quote mid to precomputed underlying_value, but
+# both produced the same path, so the redundant control was removed.
+underlying_source_choice = "Quote mid from best_bid / best_ask"
+st.sidebar.caption("Underlying series: BTC futures quote mid = (best_bid + best_ask) / 2")
 
 adaptive_contract_axis = st.sidebar.checkbox(
     "Adaptive contract price axis",
@@ -809,6 +801,7 @@ and decision-time fields.
 
             fig = px.line(
                 overview_underlying,
+                render_mode="svg",
                 x="second",
                 y=overview_source_col,
                 title=f"BTC Underlying / Futures Value ({overview_source_label})",
@@ -823,6 +816,7 @@ and decision-time fields.
         elif not futures_15m.empty and "futures_close" in futures_15m.columns:
             fig = px.line(
                 futures_15m.sort_values("window_start"),
+                render_mode="svg",
                 x="window_start",
                 y="futures_close",
                 color="symbol" if "symbol" in futures_15m.columns else None,
@@ -892,9 +886,6 @@ path chart below still shows the time-series relationship between the contract a
             st.warning("No rows found for the selected contract.")
         else:
             one = one.sort_values("second")
-
-            if "underlying_trade_price" in one.columns:
-                one["underlying_trade_price"] = one["underlying_trade_price"].ffill()
 
             underlying_col, underlying_label = get_underlying_plot_col(
                 one,
@@ -1099,10 +1090,6 @@ path chart below still shows the time-series relationship between the contract a
                 )
 
                 start_underlying = None
-
-                if underlying_source_choice == "Modeling underlying_value":
-                    if "reference_underlying" in one.columns and one["reference_underlying"].notna().any():
-                        start_underlying = float(one["reference_underlying"].dropna().iloc[0])
 
                 if start_underlying is None and one[underlying_col].notna().any():
                     start_underlying = float(one[underlying_col].dropna().iloc[0])
@@ -1337,7 +1324,7 @@ This page summarizes the futures-side conditions inside the selected week using 
 
                 if underlying_col is None:
                     possible_cols = [
-                        c for c in ["underlying_trade_price", "underlying_quote_mid", "underlying_modeling", "underlying_value"]
+                        c for c in ["underlying_quote_mid", "underlying_modeling", "underlying_value"]
                         if c in micro.columns
                     ]
                     underlying_col = possible_cols[0] if possible_cols else None
@@ -1345,6 +1332,7 @@ This page summarizes the futures-side conditions inside the selected week using 
                 if underlying_col is not None and underlying_col in micro.columns:
                     fig = px.line(
                         micro,
+                        render_mode="svg",
                         x="second",
                         y=underlying_col,
                         title=f"Selected Futures Underlying Path ({micro_label})",
@@ -1374,6 +1362,7 @@ This page summarizes the futures-side conditions inside the selected week using 
                 if spread_col is not None:
                     fig = px.line(
                         micro,
+                        render_mode="svg",
                         x="second",
                         y=spread_col,
                         title=f"Futures {spread_label} Over Time",
@@ -1444,6 +1433,7 @@ This page summarizes the futures-side conditions inside the selected week using 
                 if "local_vol_60s_bps" in micro.columns:
                     fig = px.line(
                         micro,
+                        render_mode="svg",
                         x="second",
                         y="local_vol_60s_bps",
                         title="Local 60-Second Futures Volatility",
@@ -1475,6 +1465,7 @@ This page summarizes the futures-side conditions inside the selected week using 
                     if not scatter.empty:
                         fig = px.scatter(
                             scatter,
+                            render_mode="svg",
                             x="local_vol_60s_bps",
                             y=spread_col,
                             title="Spread vs Local Volatility",
@@ -1656,6 +1647,7 @@ contract price changes. The heatmap summarizes where contract prices move the mo
         else:
             fig = px.scatter(
                 scatter,
+                render_mode="svg",
                 x="abs_z_bps",
                 y=scatter_y,
                 color="time_to_close_bucket" if "time_to_close_bucket" in scatter.columns else None,
@@ -1702,10 +1694,7 @@ moves against short-horizon Kalshi YES price moves.
         if not plot_sample_filtered.empty and scatter_y in plot_sample_filtered.columns:
             scatter = plot_sample_filtered.copy()
 
-            if "underlying_change_5s" in scatter.columns and underlying_source_choice == "Modeling underlying_value":
-                scatter_x = "underlying_change_5s"
-                x_label = "5s modeling underlying/futures change ($)"
-            elif scatter_x_source is not None:
+            if scatter_x_source is not None:
                 scatter = scatter.sort_values(["ticker", "second"])
                 scatter["selected_underlying_change_5s"] = (
                     scatter[scatter_x_source]
@@ -1727,6 +1716,7 @@ moves against short-horizon Kalshi YES price moves.
                 else:
                     fig = px.scatter(
                         scatter,
+                        render_mode="svg",
                         x=scatter_x,
                         y=scatter_y,
                         color="time_to_close_bucket" if "time_to_close_bucket" in scatter.columns else None,
@@ -1759,6 +1749,7 @@ moves against short-horizon Kalshi YES price moves.
 
             fig = px.line(
                 sens,
+                render_mode="svg",
                 x="moneyness_bucket",
                 y=sens_y,
                 color="time_to_close_bucket",
@@ -1795,7 +1786,7 @@ the full raw datasets interactively.
 """
     )
 
-    with st.expander("Underlying source check", expanded=True):
+    with st.expander("Underlying quote-mid check", expanded=True):
         check_rows = []
 
         for name, df in [
