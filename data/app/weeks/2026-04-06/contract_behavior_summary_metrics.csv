@@ -1,0 +1,8 @@
+metric,value
+contract_behavior_rows,320400.0
+contracts,356.0
+trade_seconds,257387.0
+decision_contracts,356.0
+avg_minutes_before_decision,4.8372103022471915
+near_moneyness_rows_abs_z_bps_10,125933.0
+uncertain_20_80_rows,0.0

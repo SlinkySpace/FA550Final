@@ -1,0 +1,79 @@
+AMR Log - BTC/Kalshi FA550 Dashboard Key Decisions
+Date: 2026-05-10
+Project: FA550 BTC futures and prediction contract price behavior dashboard
+
+Purpose
+This file summarizes the key decisions made during the AI-assisted workflow. It is written in an AMR style: Aim, Method, Result / Rationale. The focus is on what was decided, how the decision was approached, and why the final direction made sense for the project.
+
+1. Scope decision: BTC price behavior, not trading strategy
+Aim: Keep the submission focused on visualization and price behavior rather than discussing a live trading strategy.
+Method: The dashboard design centered on contract price paths, futures/underlying movement, threshold distance, sensitivity, decision timing, and microstructure summaries. Trading execution logic and strategy discussion were intentionally excluded from the visuals and writeup direction.
+Result / Rationale: This kept the project aligned with FA550 data visualization expectations and avoided overextending the scope into strategy evaluation.
+
+2. Data loading decision: one week at a time
+Aim: Prevent Streamlit from crashing or becoming unusably slow when working with large 1-second data.
+Method: Instead of a free calendar date range selector, the app uses a weekly selector. Weekly preprocessing files live under data/app/weeks/<week_id>/ and the app loads only the selected week.
+Result / Rationale: This made the dashboard more stable and easier to explain. It also matched the user's explicit constraint that no more than one week should be visualized or attempted at a time.
+
+3. File path decision: relative project paths only
+Aim: Make the implementation portable inside the FA550_BTC_Capstone folder.
+Method: Scripts were revised to base paths on the project root instead of hard-coded Desktop or OneDrive absolute paths. The user provided actual file locations when the first copy script found missing files.
+Result / Rationale: Relative paths improved reproducibility and made the project easier to submit or move.
+
+4. Development workflow decision: VS Code terminal commands
+Aim: Match the user's actual workflow.
+Method: Future run instructions were changed to assume the user is in a VS Code terminal and running commands like python .\script.py or streamlit run .\project\app.py. Notepad-based edit commands were avoided.
+Result / Rationale: This reduced friction and made instructions easier for the user to follow.
+
+5. Weekly build decision: precompute heavy joins and bins outside Streamlit
+Aim: Avoid doing expensive joins, aggregations, and resampling inside the app.
+Method: The weekly build pipeline produced files such as contract_summary.parquet, contract_evolution_1s.parquet, contract_plot_sample.parquet, sensitivity_bins.parquet, threshold_heatmap.parquet, contract_decision_times.parquet, and summary metric CSVs.
+Result / Rationale: Streamlit became a dashboard layer rather than a heavy data-processing engine.
+
+6. Timestamp schema decision: normalize join keys
+Aim: Fix Polars join failures caused by mismatched datetime precision.
+Method: When a join failed because window_start was datetime[us, UTC] on one side and datetime[ns, UTC] on the other, the script was revised to normalize timestamp columns before joining.
+Result / Rationale: This fixed a critical build-script error and allowed the weekly files to be generated consistently.
+
+7. Visualization decision: remove weak or misleading charts
+Aim: Keep only charts that add clear analytical value.
+Method: The Average Paths tab was removed after it produced disconnected slivers. The issue was caused by grouping average paths by dynamic fields like time_to_close_bucket and moneyness_bucket, which change over a contract's life.
+Result / Rationale: Removing the tab improved clarity and avoided confusing the grader with a weak visual.
+
+8. Visualization decision: replace duplicate price path with move distribution
+Aim: Avoid showing two nearly redundant price-path charts on the Contract Evolution page.
+Method: The contract-only YES/NO line chart was replaced with a distribution of 5-second YES price changes and a box plot of absolute 5-second YES moves by time-to-close bucket.
+Result / Rationale: The page now explains how jumpy or smooth the selected contract was, while the combined chart still shows the time-series relationship between the contract and futures-side series.
+
+9. Underlying source decision: prefer trades, but label fallbacks cleanly
+Aim: Use futures trades for the underlying when possible.
+Method: The app was updated to look for trade-price columns, then fall back to quote midpoint from best_bid and best_ask, and finally to modeling underlying_value. When yellow warning boxes became visually distracting, the user asked to remove them.
+Result / Rationale: The app can use the best available source without showing cluttering error messages. However, the Data Preview section still helps audit whether a true trade-price column exists.
+
+10. Plotly datetime marker decision: use shapes instead of add_vline
+Aim: Fix a Streamlit/Plotly crash when drawing vertical decision and close lines on datetime x-axes.
+Method: The app used add_shape and add_annotation instead of add_vline with annotation arguments.
+Result / Rationale: The chart markers became stable and avoided the pandas Timestamp arithmetic error.
+
+11. Decision-time interpretation decision
+Aim: Clarify what the dashboard's average decision minutes KPI means.
+Method: The metric was traced to minutes_before_close_at_decision.
+Result / Rationale: The correct interpretation is minutes between decision time and close/expiry, not minutes from open to decision. A clearer label would be Avg mins before close or Avg decision lead time.
+
+12. Moneyness interpretation decision
+Aim: Explain what moneyness means for binary contracts.
+Method: Moneyness was defined as the underlying/futures price relative to the contract threshold. The explanation emphasized that binary payoff is fixed, so distance from threshold measures closeness to the decision boundary rather than growing intrinsic value.
+Result / Rationale: This made the threshold-risk visuals easier to explain in the final report.
+
+13. Moneyness plot logic issue
+Aim: Understand why the threshold-distance plot showed asymptotic-looking behavior near close.
+Method: The assistant reasoned that clean moneyness should be underlying minus threshold, or ((underlying - threshold) / threshold) * 10000. Such a measure should not naturally explode unless the underlying itself moves massively.
+Result / Rationale: The likely issue is the precomputed z_bps field or metric selection. The next diagnostic is to inspect the weekly file for a true threshold/strike column and recompute threshold distance directly in app.py if possible.
+
+14. Auditability decision: keep Data Preview
+Aim: Let the user verify what the dashboard is actually using.
+Method: A Data Preview tab was kept with contract summary, decision times, sensitivity bins, threshold heatmap, plot sample, selected contract evolution, and underlying source checks.
+Result / Rationale: This helps debug data availability and supports transparency in the final submission.
+
+Overall takeaway
+The AI assistance helped move the project from scattered raw and processed files into a structured dashboard workflow. The main value came from debugging data-path and schema issues, narrowing the dashboard to stable weekly files, improving visual design, removing misleading charts, and clarifying the interpretation of binary-contract decision time and moneyness.
