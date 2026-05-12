@@ -12,6 +12,9 @@ https://fa550capstonejela.streamlit.app/
 GitHub repository:
 https://github.com/SlinkySpace/FA550Final
 
+Video Link:
+https://youtu.be/zye5yQbhcbo
+
 PROJECT OVERVIEW
 
 This project is an interactive Streamlit dashboard for studying BTC futures microstructure and short-dated Kalshi BTC binary contract price behavior. The dashboard visualizes how Kalshi YES/NO prices relate to BTC futures quote movement, threshold distance, time-to-close, spread, local volatility, and trading activity.
