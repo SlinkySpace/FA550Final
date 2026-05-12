@@ -7,7 +7,7 @@ BTC Futures Microstructure and Kalshi Contract Price Behavior Dashboard
 PROJECT ACCESS
 
 Streamlit app:
-[INSERT STREAMLIT APP LINK]
+https://fa550capstonejela.streamlit.app/
 
 GitHub repository:
 https://github.com/SlinkySpace/FA550Final
@@ -114,8 +114,3 @@ The final dashboard uses BTC futures quote midpoint as the single underlying ref
 AI USAGE
 
 AI tools were used to assist with debugging, project organization, dashboard design, performance troubleshooting, report revision, and interpretation of binary-contract moneyness. Representative AI logs are included in ai_logs/.
-
-CONTACT
-
-Jordan Ela
-[INSERT EMAIL IF REQUIRED]
